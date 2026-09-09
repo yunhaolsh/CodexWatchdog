@@ -4,6 +4,8 @@
 #include <string>
 #include <cstdint>
 #include <atomic>
+#include <memory>
+#include <display/lvgl_display/lvgl_font.h>
 
 // Retains the existing registration class; the launcher entry is WATCHDOG.
 class AppAvatar : public mooncake::AppAbility {
@@ -19,6 +21,9 @@ private:
     lv_obj_t* message_ = nullptr;
     lv_obj_t* scroll_ = nullptr;
     lv_obj_t* footer_ = nullptr;
+    lv_obj_t* sound_label_ = nullptr;
+    bool sound_label_playing_ = false;
+    std::unique_ptr<LvglCBinFont> text_font_;
     std::string task_, state_, last_message_;
     int64_t sequence_ = -1;
     uint32_t last_seen_ = 0;
