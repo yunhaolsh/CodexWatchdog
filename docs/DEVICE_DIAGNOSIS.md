@@ -90,3 +90,36 @@ PC 可继续使用同一路由器的 5 GHz 网络，前提是两个频段的客�
 联网后仍需处理 AI.AGENT 的 Xiaozhi OTA/WebSocket 接口；当前 Watchdog
 `--legacy-device` 不是该接口的实现。先验证联网、服务握手和固定文字显示，
 再让用户重跑 Codex 任务。
+
+
+## 22:58 持续黑屏：启动阶段 PSRAM 初始化失败
+
+再次按 USB 序列号 `44:1B:F6:E5:62:28` 只读监听，确认目标现在映射到
+`/dev/ttyACM1`（另一块板是 ACM0），内核记录目标频繁断开并重新枚举。
+本次串口反复输出：
+
+```text
+boot: ESP-IDF v5.5.4-dirty 2nd stage bootloader
+boot: compile time Aug 27 2026 22:39:21
+boot.esp32s3: SPI Flash Size : 8MB
+boot: Loaded app from partition at offset 0x10000
+E (517) octal_psram: PSRAM chip is not connected, or wrong PSRAM line mode
+E cpu_start: Failed to init external RAM!
+abort() was called at PC 0x420039f3 on core 0
+Rebooting...
+```
+
+此时分区名为 nvs/phy_init/factory/cmm/assistant/model，与此前目标的
+nvs/otadata/phy_init/ota_0/ota_1/assets/coredump 不同；启动固件发生变化，
+不能继续按此前已进入 AI.AGENT 的状态判断。无法仅凭日志判断由谁、何时刷入。
+8MB 是本次启动配置输出，不代表设备物理 Flash 容量变成了 8MB。
+
+本地 StackChan 固件 sdkconfig 使用 `CONFIG_SPIRAM_MODE_QUAD=y` 和 16MB Flash，
+本次启动却进入 octal_psram 初始化并失败，固件与硬件配置不匹配是优先排查方向，
+尚不能据此排除硬件故障。本地 esp-claw edge_agent sdkconfig 是 Octal/8MB，
+仅配置相似，不足以断定当前刷入固件的项目身份。
+
+应先确认最近是否刷入其他固件及其来源，再准备匹配此板的恢复镜像；
+恢复启动后才能配网。本次操作仅枚举 USB、读取内核日志和只读串口，未刷写。
+现有外部 diagnose_stackchan_serial.py 在出现 SPI_FAST_FLASH_BOOT 时会误报
+“Firmware appears to be booting”，本次明确以原始 PSRAM 错误和反复重启为准。
