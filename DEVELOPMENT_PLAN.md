@@ -30,6 +30,7 @@ Daemon 是 PC 上的桥接层，负责启动或连接 Codex CLI、解析事件�
 
 - [ ] 定义版本化 JSON 消息协议。
 - [ ] 实现单设备 WebSocket 客户端、重连、心跳和鉴权。
+- [x] 确认 StackChan 主动连接 `/stackChan/ws?deviceType=StackChan`，并抽象单设备会话层。
 - [ ] 实现本地 HTTP API：`/health`、`/status`、`/events`。
 - [ ] 实现设备状态机：`idle`、`running`、`waiting`、`success`、`failed`、`offline`。
 - [ ] 先用测试脚本模拟 Codex 事件，验证灯光、屏幕、提示音。
