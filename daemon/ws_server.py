@@ -32,6 +32,8 @@ class StackChanWebSocketServer:
         self.legacy_device = legacy_device
         self._connection: ServerConnection | None = None
         self._latest = TaskStatus("none", "idle", title="Ready / 就绪")
+        self._display_task = None
+        self._display_response = ""
         self._action_handler = None
         self._send_lock = asyncio.Lock()
 
@@ -44,6 +46,11 @@ class StackChanWebSocketServer:
 
     async def publish(self, status: TaskStatus) -> None:
         async with self._send_lock:
+            if status.task_id != self._display_task:
+                self._display_task = status.task_id
+                self._display_response = ""
+            if status.phase == "response" and status.message:
+                self._display_response = status.message
             self._latest = status
             connection = self._connection
             if connection is not None:
@@ -151,7 +158,14 @@ class StackChanWebSocketServer:
     def _encode_status(self, status: TaskStatus):
         if not self.legacy_device:
             return status.to_json()
-        payload = json.dumps({"name": "CodexWatchdog", "content": status.message or status.title}, ensure_ascii=False).encode()
+        display = status.to_dict()
+        if (status.state in {"success", "failed", "cancelled"} and not status.message
+                and status.task_id == self._display_task):
+            display["message"] = self._display_response
+        # Keep the existing text frame readable on unmodified AVATAR firmware.
+        # New WATCHDOG firmware reads the structured extension for its persistent UI.
+        payload = json.dumps({"name": "CodexWatchdog", "content": display["message"] or status.title,
+                              "watchdog": display}, ensure_ascii=False).encode()
         return bytes([0x07]) + struct.pack(">I", len(payload)) + payload
 
 

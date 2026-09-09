@@ -14,7 +14,10 @@ def test_legacy_status_uses_existing_text_message_frame():
     assert frame[0] == 0x07
     length = struct.unpack(">I", frame[1:5])[0]
     payload = json.loads(frame[5:])
-    assert length == len(frame[5:]) and payload == {"name": "CodexWatchdog", "content": "执行中 / Working"}
+    assert length == len(frame[5:])
+    assert payload["name"] == "CodexWatchdog" and payload["content"] == "执行中 / Working"
+    assert payload["watchdog"]["state"] == "running"
+    assert payload["watchdog"]["type"] == "task.status"
 
 
 def test_unauthenticated_legacy_connection_cannot_approve():
@@ -74,4 +77,21 @@ def test_legacy_heartbeat_requires_application_pong_and_allows_reconnect(monkeyp
         finally:
             listener.close()
             await listener.wait_closed()
+    asyncio.run(scenario())
+
+
+def test_completion_preserves_response_for_reconnect_but_not_next_task():
+    async def scenario():
+        server = StackChanWebSocketServer("test-token", legacy_device=True)
+        await server.publish(TaskStatus("first", "running", phase="response", message="最终回复"))
+        completed = TaskStatus("first", "success", title="Completed / 本轮完成")
+        await server.publish(completed)
+        snapshot = json.loads(server._encode_status(server._latest)[5:])
+        assert snapshot["watchdog"]["message"] == "最终回复"
+        assert snapshot["watchdog"]["state"] == "success"
+        assert completed.message == ""  # immutable canonical status stays unchanged
+        await server.publish(TaskStatus("second", "running"))
+        await server.publish(TaskStatus("second", "success"))
+        snapshot = json.loads(server._encode_status(server._latest)[5:])
+        assert snapshot["watchdog"]["message"] == ""
     asyncio.run(scenario())

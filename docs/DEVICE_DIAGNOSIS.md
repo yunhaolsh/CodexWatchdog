@@ -167,3 +167,26 @@ command/response/complete，CLI 退出码 0、最终状态 success；结束后�
 动态执行/完成文字仍待用户视觉确认。
 现有 AVATAR 的 onWsTextMessage 使用 6000ms TimedSpeechModifier，
 因此提示约 6 秒后消失；这不是 Watchdog 的常驻状态页，后续仍需专用显示组件。
+
+
+## WATCHDOG 常驻任务页已刷入
+
+用户表示未看到短暂的执行/完成气泡，要求延长文字显示并继续开发。
+已在本仓库增加 firmware/overlay 及独立副本准备工具，替换原 AVATAR 入口为
+WATCHDOG：常驻、可滚动文字，保留最终回复，运行红闪/完成绿灯及短提示音，
+12 秒无有效状态或心跳后标识 OFFLINE 并熄灯。
+
+- PC 自动化：31 项通过；增加结构化状态扩展和完成回复跨快照保留测试。
+- 固件：独立副本 idf.py build 通过，原 Demo 已跟踪源码未修改。
+- 刷写：目标仍为 44:1B:F6:E5:62:28；NVS/OTA 信息已备份，核验 ota_0 后
+  仅更新 0x20000 应用分区，esptool 校验通过。
+- 镜像 SHA256：b481f84b927ec0db7f7b9ecd9cfcea2424557932250958ce5eaa75d8ac68ff18。
+- 复位后捕获 8MB PSRAM 正常、Launcher 启动，约 20 秒 SRAM 稳定在 125079 字节；
+  观察窗口无 panic 或重启。
+- 已重启无活跃任务的本项目 Daemon，仍用原 token 和局域网地址。
+- 预先执行只读 README 任务 aaa12ed4c7a54b6db80b74aa4feaf902，最终 success，
+  服务保留三句回复供新页面打开时重放；首次连接历史完成结果不播放提示音。
+
+用户尚需打开桌面 WATCHDOG 检查文字常驻/滚动，并在下一次任务执行时
+验收红灯、绿灯、提示音及断线行为；当前不声称这些物理效果已获确认。
+真实审批按钮与鉴权原生协议仍待开发。构建与操作详见 firmware/README.md。

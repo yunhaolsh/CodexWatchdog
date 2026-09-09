@@ -5,6 +5,10 @@ HTTP 查询和 WebSocket 状态推送。固件、设备审批和语音尚未完�
 
 开发状态见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
+新版 [WATCHDOG 固件](firmware/README.md) 提供常驻、可滚动的任务文字页、
+红绿灯和完成提示音。打开桌面 **WATCHDOG** 入口使用；原 AVATAR 的 6 秒
+气泡测试方式仅适用于旧固件。设备审批仍未实现。
+
 ## 安装与测试
 
 ```bash
