@@ -44,6 +44,7 @@
 - [x] 将 app-server 后端接入 Daemon 的 `serve --backend app-server`。
 - [ ] 真实 StackChan 触摸按钮验证 approve/decline 后 Codex 是否继续/停止。
 - [x] 增加显式 legacy 模式，可用当前固件做屏幕 TextMessage 冒烟测试。
+- [ ] 在 `/dev/ttyACM1` 上做屏幕冒烟测试（不刷写固件）。
 - [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
 - [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
 - [ ] 审批的可用选项以服务端请求为准。
