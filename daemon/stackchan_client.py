@@ -6,6 +6,7 @@ this module keeps state replay and action validation independent of that library
 from __future__ import annotations
 
 import asyncio
+import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any, Protocol
 
@@ -23,9 +24,9 @@ class StackChanClient:
         self._transport_factory = transport_factory
         self._transport: JsonTransport | None = None
         self._last_status: TaskStatus | None = None
-        self._action_handler: Callable[[TaskAction], Awaitable[None]] | None = None
+        self._action_handler: Callable[[TaskAction], Awaitable[None] | None] | None = None
 
-    def set_action_handler(self, handler: Callable[[TaskAction], Awaitable[None]]) -> None:
+    def set_action_handler(self, handler: Callable[[TaskAction], Awaitable[None] | None]) -> None:
         self._action_handler = handler
 
     async def publish(self, status: TaskStatus) -> None:
@@ -43,7 +44,9 @@ class StackChanClient:
             raise RuntimeError("StackChan is not connected")
         action = TaskAction.from_dict(await self._transport.recv_json())
         if self._action_handler is not None:
-            await self._action_handler(action)
+            result = self._action_handler(action)
+            if inspect.isawaitable(result):
+                await result
         return action
 
     async def run(self, stop: asyncio.Event, retry_delay: float = 1.0) -> None:
