@@ -1,27 +1,105 @@
 # CodexWatchdog
 
-PC-side bridge for showing Codex CLI activity on a paired StackChan device.
+将 PC 上的 Codex 任务状态同步到 StackChan。当前已实现 PC Daemon、CLI 任务提交、
+HTTP 查询和 WebSocket 状态推送。固件、设备审批和语音尚未完成。
 
-The implementation roadmap is in [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md).
+开发状态见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
-## Phase 1 local smoke test
-
-```bash
-python -m daemon.server
-curl http://127.0.0.1:12880/health
-curl -X POST http://127.0.0.1:12880/events -H 'Content-Type: application/json' -d '{"state":"running","task_id":"demo","phase":"analysis","title":"分析中"}'
-curl http://127.0.0.1:12880/status
-```
-
-Install runtime dependencies with `python -m pip install -e .`.
-
-Run tests with `python -m pytest`.
-
-## Daemon entry points
+## 安装与测试
 
 ```bash
-python -m daemon.app serve --host 0.0.0.0 --port 12800
-python -m daemon.app run "检查当前测试并修复失败项" --cwd /path/to/project
+python -m pip install -e '.[test]'
+python -m pytest -q
 ```
 
-The StackChan firmware currently connects to `/stackChan/ws?deviceType=StackChan`.
+测试会创建临时的本机 HTTP/WebSocket 服务，启动 `tests/fixtures/mock_codex.py`，
+不会调用模型或真实 Codex。需要允许本机 socket 和子进程。
+
+## 启动常驻 Daemon
+
+在仓库根目录执行：
+
+```bash
+python -m daemon.app serve
+```
+
+该进程同时启动：
+
+- HTTP 控制 API：`http://127.0.0.1:12880`
+- 设备 WebSocket：`ws://127.0.0.1:12800/stackChan/ws`
+
+首次启动自动生成 `.run/token`（权限 0600，不提交 Git）。所有终端默认从当前目录读取
+同一 token 文件；在其他目录启动命令时使用 `--token-file /绝对路径/.run/token`。
+端口占用时指定 `--port` 和 `--api-port`，客户端也要指定相同的 `--api-port`。
+
+## 设备模拟器
+
+第二个终端，在同一目录执行：
+
+```bash
+python -m daemon.app simulate-device
+```
+
+终端会显示 hello 和最新状态。它连接的是真实 WebSocket 服务，支持断线重连。
+单次只允许一个配对设备在线。当前身份为 `stackchan-1`，可在服务端和模拟器
+同时用 `--device-id` 改变。
+
+## 提交与查询任务
+
+第三个终端执行（需要 Codex 已登录，将调用真实模型）：
+
+```bash
+python -m daemon.app run "只阅读 README，给出三句话摘要，不修改文件" --cwd "$PWD" --wait
+python -m daemon.app status
+```
+
+`run` 向常驻 Daemon 提交任务，不会创建另一个孤立运行时。省略 `--wait` 即提交后返回
+任务 ID。模拟器应显示 `running`、命令或回复摘要、最终 `success`/`failed`。
+`success` 表示本轮完成且进程退出码为 0，不表示任务结果经过独立正确性验证。
+
+```bash
+python -m daemon.app cancel TASK_ID
+```
+
+每次只运行一个任务，重复提交返回 409。取消或停止服务时会终止所启动的 Codex
+进程组。内存保留最近 100 个任务状态，服务重启后清空。
+
+## 协议与当前边界
+
+服务端使用 `Authorization: Bearer <token>` 鉴权，设备连接后首先发送：
+
+```json
+{"type":"hello","version":1,"device_id":"stackchan-1"}
+```
+
+服务端返回 hello 和当前 `task.status`。每次重连重放最新状态，使用 WebSocket
+ping/pong 检测断线，拒绝错误路径、错误 token 和重复连接。
+
+仅保留原 StackChan 的路径名称不代表兼容原固件：旧 `/stackChan/ws` 是头像/通话协议，
+另有 Xiaozhi `/ws` 音频协议。目前两者都不会自动识别这里的 `task.status`。
+需要后续适配固件，当前不要据此刷机或更改原 Demo 的服务器配置。
+
+将来设备通过局域网连接时使用 `serve --host 0.0.0.0`。HTTP 控制端口仍仅监听 loopback。
+当前是局域网明文 WebSocket，尚未实现 TLS 或自动发现。
+
+当前后端为 `codex exec --json`，只读取官方定义的任务事件，未接入真实审批。
+收到 `task.action` 会明确返回 `accepted: false, code: approval_unavailable`，不改变任务状态。
+下一阶段将评估 `codex app-server` 的结构化审批请求及响应，不用虚构日志事件或终端按键
+来模拟批准。语音、提示音乐和固件灯效同样尚未实现。
+
+参考：[Codex 非交互模式](https://developers.openai.com/codex/noninteractive)、
+[Codex app-server 审批接口](https://developers.openai.com/codex/app-server)。
+
+## HTTP API
+
+所有 API 要求相同的 Bearer token，`POST` body 是 JSON 对象，最大 64 KiB。
+
+| Method | Path | 用途 |
+| --- | --- | --- |
+| GET | `/health` | 服务、设备连接、任务占用、审批支持状态 |
+| GET | `/status` | 当前任务快照 |
+| POST | `/tasks` | 提交 `{"prompt":"...","cwd":"/absolute/path"}` |
+| GET | `/tasks/{id}` | 查询指定任务快照 |
+| POST | `/tasks/{id}/cancel` | 取消任务，body 为 `{}` |
+
+旧的 `python -m daemon.server` 独立 HTTP 测试服务已经停用，请使用统一的 `serve`。

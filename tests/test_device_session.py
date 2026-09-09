@@ -8,7 +8,7 @@ def test_hello_and_action_are_decoded():
     session = DeviceSession()
     assert session.receive_text('{"type":"hello","device_id":"stackchan-1"}') is None
     assert session.hello_received and session.device_id == "stackchan-1"
-    action = session.receive_text('{"version":1,"type":"task.action","task_id":"t1","action":"approve"}')
+    action = session.receive_text('{"version":1,"type":"task.action","task_id":"t1","request_id":"p1","action":"approve"}')
     assert action and action.action == "approve"
 
 

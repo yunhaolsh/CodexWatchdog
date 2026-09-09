@@ -7,7 +7,16 @@ name = "codexwatchdog"
 version = "0.1.0"
 description = "StackChan status and interaction bridge for Codex CLI"
 requires-python = ">=3.11"
-dependencies = ["websockets>=13,<16"]
+dependencies = ["websockets>=15,<16"]
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[project.scripts]
+codexwatchdog = "daemon.app:main"
+
+[tool.setuptools.packages.find]
+include = ["daemon*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

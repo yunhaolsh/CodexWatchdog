@@ -33,11 +33,14 @@ class TaskAction:
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> "TaskAction":
-        if value.get("version") != 1 or value.get("type") != "task.action":
+        if not isinstance(value, dict) or type(value.get("version")) is not int or value.get("version") != 1 or value.get("type") != "task.action":
             raise ValueError("unsupported task action")
         if value.get("action") not in {"approve", "reject"}:
             raise ValueError("action must be approve or reject")
         task_id = value.get("task_id")
         if not isinstance(task_id, str) or not task_id:
             raise ValueError("task_id is required")
-        return cls(task_id=task_id, action=value["action"], request_id=value.get("request_id"))
+        request_id = value.get("request_id")
+        if not isinstance(request_id, str) or not request_id:
+            raise ValueError("request_id is required")
+        return cls(task_id=task_id, action=value["action"], request_id=request_id)

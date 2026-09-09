@@ -1,131 +1,75 @@
 # CodexWatchdog 开发路线
 
-## 目标
+## 已确定的需求
 
-让一台 StackChan 成为 Codex CLI 的远程状态终端和交互入口：显示任务阶段、进度和权限请求；运行中红灯闪烁，等待确认黄灯慢闪，成功绿灯常亮，失败红灯常亮；支持在 StackChan 上批准或拒绝 Codex CLI 权限请求，并为后续触摸/语音启动任务和查询任务保留接口。
+- PC 上以 Codex CLI 开始，后续支持 Desktop。
+- 一台 StackChan，屏幕中英混合；运行红灯闪烁，等待权限黄灯慢闪，完成绿灯常亮。
+- 设备能批准/拒绝真实权限请求，完成时播放提示音乐。
+- 后续语音下发和查询任务。
+- 每个可独立验证的阶段完成后测试并提交；最后统一安排实机验收。
 
-## 总体架构
+## 开发约定
 
-```text
-Codex CLI <-> AgentWatchdog Daemon <-> StackChan
-                         |
-                         +-- 本地任务状态与权限代理
-                         +-- 语音输入/查询入口（后续）
-```
+只复用 `/home/yunhao/github/stackchan` 中已确认的硬件组件和工具链，不默认覆盖旧 Demo。
+每个阶段区分代码完成、自动化验证、实机验证。测试通过不等于固件或真实 Codex 已验收。
+不要从 `codex exec` 的进程输出猜测权限请求，不能把本地显示变化视为批准成功。
 
-Daemon 是 PC 上的桥接层，负责启动或连接 Codex CLI、解析事件、保存任务状态、向设备推送状态，以及把设备上的批准/拒绝写回 CLI 的交互通道。
+## Phase 0：基线
 
-## 分阶段实施
+- [x] 确认本地已有 ESP-IDF 和 StackChan 工程。
+- [x] 确认 Codex CLI 支持 `exec --json`。
+- [x] 建立 Python 包、依赖、测试和 Git 仓库。
+- [ ] 确认实际 USB 串口、板型、当前固件和 ready 模式含义。
+- [ ] 记录现有固件及恢复方法，检查可用构建环境。
 
-### Phase 0：环境和硬件基线
+## Phase 1：PC 完整链路
 
-- [ ] 确认 StackChan 的实际串口设备、板型和当前固件版本。
-- [ ] 从 `/home/yunhao/github/stackchan` 复用 ESP-IDF 环境和板级组件。
-- [ ] 确认屏幕、RGB 灯、扬声器、触摸输入均可独立控制。
-- [ ] 建立本仓库的 Python 开发环境和基础测试命令。
+- [x] 同一 Daemon 持有 HTTP 控制、任务运行器和设备 WebSocket。
+- [x] `run` 提交至常驻 Daemon，支持状态查询、单任务限流和取消。
+- [x] Codex JSONL 解析命令/回复/完成/失败；关闭服务清理子进程。
+- [x] Bearer token、配对 device_id、握手超时、心跳和重复连接限制。
+- [x] 重连保留并重放最新状态。
+- [x] 模拟设备连接真实服务，独立 CLI 进程提交本地模拟任务。
+- [x] 自动化验证 HTTP/WS 鉴权、连接恢复、非零退出、缺失完成和取消。
+- [ ] 用户通过真实 Codex 任务验证显示状态。
 
-验收：能在本机刷写/运行一个最小固件，并通过串口看到设备状态。
+自动化使用 mock Codex 进程，不调用模型。当前完成的工作以此阶段为界。
 
-### Phase 1：PC Daemon 与设备状态协议
+## Phase 2：真实审批后端
 
-- [ ] 定义版本化 JSON 消息协议。
-- [ ] 实现单设备 WebSocket 客户端、重连、心跳和鉴权。
-- [x] 确认 StackChan 主动连接 `/stackChan/ws?deviceType=StackChan`，并抽象单设备会话层。
-- [ ] 实现本地 HTTP API：`/health`、`/status`、`/events`。
-- [x] 统一 Daemon 启动入口，提供 `serve` 和 `run` 子命令。
-- [ ] 实现设备状态机：`idle`、`running`、`waiting`、`success`、`failed`、`offline`。
-- [ ] 先用测试脚本模拟 Codex 事件，验证灯光、屏幕、提示音。
+- [ ] 读取当前 `codex app-server` 生成的 schema，确认 initialize、thread、turn 接口。
+- [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
+- [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
+- [ ] 审批的可用选项以服务端请求为准。
+- [ ] 断线、已在 PC 回答、任务取消和超时应使设备按钮失效。
+- [ ] 集成测试必须核验响应实际写回 Codex，而不是只更改屏幕。
 
-验收：无需启动 Codex，发送模拟事件即可完整驱动 StackChan 状态变化。
+`exec --json` 当前只做监控，设备动作明确返回 `approval_unavailable`。
+官方 app-server 提供结构化审批通道，应先验证它，再决定是否需要任何 PTY 方案。
 
-### Phase 2：Codex CLI 适配器
+## Phase 3：固件
 
-- [ ] 设计 `CodexEventSource` 接口。
-- [ ] 优先验证 Codex CLI 的结构化输出/事件能力。
-- [ ] 若权限交互仍是终端输入，使用 PTY 启动 CLI 并解析权限提示。
-- [ ] 将开始、阶段变化、命令、权限请求、完成、失败统一成内部事件。
-- [ ] 记录任务 ID、工作目录、开始时间、结束时间和最后结果摘要。
+- [ ] 在新仓库内建立可复现的固件构建或组件接入方式。
+- [ ] 设备主动连接 PC，使用 Watchdog v1 hello 和状态协议。
+- [ ] 增加显示页：当前阶段、摘要、连接状态、权限内容和 Allow/Reject。
+- [ ] 状态灯：idle 熄灭、running 红闪、waiting 黄闪、success 绿常亮、failed 红常亮。
+- [ ] 心跳超时进入 offline，不保留误导性的成功状态。
+- [ ] 完成/失败提示音；重复快照不重复播放音乐。
+- [ ] 编译、刷写、屏幕/灯光/触摸/音乐实机验收。
 
-验收：执行 `agentwatchdog run ...` 时，StackChan 能同步显示开始、执行中、权限等待、成功/失败。
+旧工程中的 `/stackChan/ws` 是头像/通话协议，Xiaozhi `/ws` 是另一套协议。
+路径可沿用，但 `task.status` 与鉴权必须显式适配，不能认为当前固件已经兼容。
 
-### Phase 3：StackChan 触摸确认
+## Phase 4：语音
 
-- [ ] 增加 `Allow`、`Reject` 两个可操作区域。
-- [ ] 设备上报 `approve`/`reject`，包含 `task_id` 和 `request_id`。
-- [ ] Daemon 校验请求是否仍然有效，避免重复或过期确认。
-- [ ] 将确认结果写回 Codex CLI 的 PTY/输入通道。
-- [ ] 增加超时、断线和拒绝后的清晰状态。
+- [ ] 复用设备录音、上传与音频播放能力。
+- [ ] 选择 ASR 接入，先实现“当前任务”“最近结果”“停止任务”。
+- [ ] 语音下发任务先显示转写和工作目录，确认后提交。
+- [ ] 语音响应或提示音，处理噪声、空转写和断网。
 
-验收：用户不接触 PC 键盘，也能在设备上完成一次真实权限批准和拒绝。
+## Phase 5：运行与发布
 
-### Phase 4：语音任务入口与查询
-
-- [ ] 复用 StackChan 现有音频/WebSocket 能力。
-- [ ] 先支持固定意图：启动任务、当前状态、停止任务、最近结果。
-- [ ] 再支持自然语言转任务描述。
-- [ ] 语音任务必须显示确认摘要，避免误启动高风险命令。
-
-验收：用户可通过 StackChan 语音查询当前任务，并启动一个明确的 Codex CLI 任务。
-
-### Phase 5：稳定性与发布
-
-- [ ] 增加单元测试、协议测试和 PTY 集成测试。
-- [ ] 覆盖设备断线、Daemon 重启、CLI 崩溃、重复确认和任务超时。
-- [ ] 增加本地日志脱敏，不记录 API key 和完整敏感命令输出。
-- [ ] 增加 systemd/启动脚本和配置文件。
-- [ ] 编写刷机、回滚、故障诊断文档。
-
-## 首版协议草案
-
-PC 推送：
-
-```json
-{
-  "version": 1,
-  "type": "task.status",
-  "task_id": "task_123",
-  "state": "waiting",
-  "phase": "permission",
-  "title": "需要确认 / Approval required",
-  "message": "执行 npm install",
-  "request_id": "perm_456",
-  "requires_action": true
-}
-```
-
-设备上行：
-
-```json
-{
-  "version": 1,
-  "type": "task.action",
-  "task_id": "task_123",
-  "request_id": "perm_456",
-  "action": "approve"
-}
-```
-
-协议必须支持 `request_id` 幂等校验、状态序号、心跳和设备重连后的当前状态重放。
-
-## 首版工程结构
-
-```text
-codexwatchdog/
-├── daemon/
-│   ├── server.py
-│   ├── protocol.py
-│   ├── stackchan_client.py
-│   ├── codex_cli_adapter.py
-│   └── task_state.py
-├── firmware/
-│   └── stackchan-codex-monitor/
-├── tests/
-├── pyproject.toml
-└── README.md
-```
-
-## 风险与第一条实现任务
-
-Codex CLI 权限交互方式是首要技术风险，先做 PTY/结构化事件探测。语音下发任务必须有确认摘要和高风险命令拦截。第一版只允许一台设备配对，使用随机 token；固件优先复用 StackChan 现有 WebSocket 和硬件能力。
-
-首先完成 Phase 0 和 Phase 1 的 PC 侧最小闭环：建立 Python 包与测试框架，实现协议模型与状态机，实现模拟设备客户端/服务器，定义真实固件需要新增的最小消息处理接口，然后连接当前 ready 状态的设备实测。
+- [ ] 任务历史持久化和 Daemon 重启恢复规则。
+- [ ] 配置文件、systemd/启动脚本、局域网地址发现。
+- [ ] 文档：安装、配对、刷机、回退和故障诊断。
+- [ ] 真实 CLI 和 StackChan 完整闭环验收；之后考虑 Desktop。

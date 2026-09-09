@@ -29,7 +29,7 @@ def test_status_replayed_after_connect_and_actions_forwarded():
         await client.publish(TaskStatus(task_id="t1", state="running", title="执行中"))
         await client.connect()
         assert transport.sent[0]["task_id"] == "t1"
-        await transport.incoming.put({"version": 1, "type": "task.action", "task_id": "t1", "action": "approve"})
+        await transport.incoming.put({"version": 1, "type": "task.action", "task_id": "t1", "request_id": "p1", "action": "approve"})
         action = await client.receive_once()
         assert action.action == "approve" and received == [action]
 
