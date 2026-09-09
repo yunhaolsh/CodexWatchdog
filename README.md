@@ -13,4 +13,6 @@ curl -X POST http://127.0.0.1:12880/events -H 'Content-Type: application/json' -
 curl http://127.0.0.1:12880/status
 ```
 
+Install runtime dependencies with `python -m pip install -e .`.
+
 Run tests with `python -m pytest`.
