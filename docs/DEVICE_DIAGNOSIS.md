@@ -148,3 +148,22 @@ PC 本地 DNS 成功本身均不能证明设备能访问服务。
 
 当前服务 PID 文件为 `.run/daemon.pid`、`.run/mdns.pid`，日志同目录。
 这些是本次启动的临时服务，不覆盖旧 Demo 的服务或添加系统自启动。
+
+
+## AVATAR 固定文字验收通过
+
+用户确认 AVATAR 中显示 Ready。Daemon 记录连接成功，doctor 的
+`device_connected=true`，证明固定文字显示链路已完成实机验收。
+`display_verified=false` 目前是程序固定输出，表示程序没有视觉确认机制，
+不是否定本次用户确认，也不是设备故障。
+
+随后通过当前 Daemon 下发只读 README 三句话摘要任务，ID
+`7a4d27e8be444c4ca8923a649d93dfeb`。任务依次产生 starting/analysis/response/
+command/response/complete，CLI 退出码 0、最终状态 success；结束后设备仍连接。
+原始任务输出存于 `.run/recovery/avatar-task-check.jsonl`。
+
+只读设备日志捕获 5 次 `WS-Avatar: HeartbeatPing`，间隔约 3 秒，
+本次窗口未捕获任务 TextMessage（不能据此宣称已逐条确认设备收到任务文本）。
+动态执行/完成文字仍待用户视觉确认。
+现有 AVATAR 的 onWsTextMessage 使用 6000ms TimedSpeechModifier，
+因此提示约 6 秒后消失；这不是 Watchdog 的常驻状态页，后续仍需专用显示组件。

@@ -43,8 +43,9 @@
 - [x] 实现 app-server 的 thread/turn 启动、审批挂起和设备 action 恢复骨架。
 - [x] 将 app-server 后端接入 Daemon 的 `serve --backend app-server`。
 - [ ] 真实 StackChan 触摸按钮验证 approve/decline 后 Codex 是否继续/停止。
-- [x] 增加旧头像协议 TextMessage 编码及 0x10/0x11 应用层心跳；自动化验证回复、超时和重连，实机显示仍待验收。
-- [ ] 恢复已确认的 USB `44:1B:F6:E5:62:28` 固件后接入屏幕；不得操作另一块 `AC:27:6E:D2:FD:C8`，不能按 ACM 编号识别。
+- [x] 增加旧头像协议 TextMessage 编码及 0x10/0x11 应用层心跳；自动化验证回复、超时和重连，实机已观测连续心跳。
+- [x] 恢复 USB `44:1B:F6:E5:62:28` 固件并接入 AVATAR；用户确认屏幕显示 Ready。不得操作另一块 `AC:27:6E:D2:FD:C8`，不能按 ACM 编号识别。
+- [ ] 动态状态屏幕验收：真实只读任务已成功、设备保持连接，执行中与完成文字仍待用户确认。
 - [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
 - [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
 - [ ] 审批的可用选项以服务端请求为准。

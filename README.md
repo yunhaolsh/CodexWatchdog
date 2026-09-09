@@ -82,7 +82,8 @@ python -m daemon.app doctor
 legacy 模式不验证 Watchdog token，只发送旧版 `TextMessage` 帧（`0x07`），
 仅处理固定心跳回复，其他入站动作均被忽略，不能参与审批。
 已实现旧协议应用层心跳：每轮发送 `0x10`，等待 `0x11`，超时关闭连接；
-自动化已验证回复、超时和重连，实机显示仍需验收。
+自动化已验证回复、超时和重连；恢复固件的 AVATAR 已由用户确认显示 Ready，
+动态任务状态仍需视觉验收。
 
 ### 已恢复固件的屏幕测试
 
@@ -106,6 +107,7 @@ python /home/yunhao/github/stackchan/scripts/mdns_alias.py \
 
 设备进入 AVATAR 后，服务应记录 `Device connected`，屏幕应收到
 `Ready / 就绪`。先验证这条固定文字，再运行 Codex 任务。
+原 AVATAR 将收到的文字显示约 6 秒后清除，尚不提供常驻任务状态页。
 切换局域网后需更新发布地址；上述手动服务不是系统自启动服务。
 
 ```bash
