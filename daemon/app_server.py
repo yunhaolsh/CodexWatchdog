@@ -16,9 +16,11 @@ class AppServerError(RuntimeError):
 
 
 class CodexAppServer:
-    def __init__(self, executable: str = "codex", approval_handler: Callable[[ApprovalRequest], Awaitable[str] | str] | None = None):
+    def __init__(self, executable: str = "codex", approval_handler: Callable[[ApprovalRequest], Awaitable[str] | str] | None = None,
+                 notification_handler: Callable[[dict[str, Any]], Awaitable[None] | None] | None = None):
         self.executable = executable
         self.approval_handler = approval_handler
+        self.notification_handler = notification_handler
         self.process = None
         self._reader_task = None
         self._pending: dict[int, asyncio.Future] = {}
@@ -73,6 +75,10 @@ class CodexAppServer:
                 approval = ApprovalRequest.from_rpc(message)
                 if approval is not None:
                     await self._handle_approval(approval)
+                elif "method" in message and self.notification_handler is not None:
+                    result = self.notification_handler(message)
+                    if asyncio.iscoroutine(result):
+                        await result
         except (ConnectionError, BrokenPipeError):
             pass
         finally:
