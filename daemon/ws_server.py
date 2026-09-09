@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
+import logging
 import secrets
 import struct
 from urllib.parse import urlsplit
@@ -12,6 +13,8 @@ from websockets.asyncio.server import ServerConnection, serve
 from websockets.exceptions import ConnectionClosed
 
 from .protocol import TaskAction, TaskStatus
+
+logger = logging.getLogger("codexwatchdog.device")
 
 
 class StackChanWebSocketServer:
@@ -46,10 +49,12 @@ class StackChanWebSocketServer:
 
     def _authenticate(self, connection, request):
         if urlsplit(request.path).path != "/stackChan/ws":
+            logger.warning("Rejected connection: unsupported endpoint (expected /stackChan/ws)")
             return connection.respond(404, "unknown endpoint\n")
         values = request.headers.get_all("Authorization")
         expected = f"Bearer {self.token}".encode()
         if not self.legacy_device and (len(values) != 1 or not secrets.compare_digest(values[0].encode(), expected)):
+            logger.warning("Rejected connection: invalid device token")
             return connection.respond(401, "unauthorized\n")
         if request.headers.get_all("Origin"):
             return connection.respond(403, "browser connections are not supported\n")
@@ -67,6 +72,8 @@ class StackChanWebSocketServer:
                     await websocket.close(1008, "device already connected")
                     return
                 self._connection = websocket
+                logger.info("Device connected: id=%s protocol=%s", self.device_id,
+                            "legacy-avatar" if self.legacy_device else "watchdog-v1")
                 if self.legacy_device:
                     await websocket.send(self._encode_status(self._latest))
                 else:
@@ -76,6 +83,9 @@ class StackChanWebSocketServer:
                     }))
                     await websocket.send(self._latest.to_json())
             async for raw in websocket:
+                if self.legacy_device:
+                    # An unauthenticated display-only session must never submit approvals.
+                    continue
                 try:
                     if not isinstance(raw, str):
                         raise ValueError("expected a text message")
@@ -93,12 +103,14 @@ class StackChanWebSocketServer:
                     "task_id": action.task_id, "request_id": action.request_id, **result,
                 }))
         except (ValueError, TypeError, TimeoutError):
+            logger.warning("Device handshake failed: invalid or missing hello")
             await websocket.close(1008, "invalid or missing hello")
         except ConnectionClosed:
             pass
         finally:
             if self._connection is websocket:
                 self._connection = None
+                logger.info("Device disconnected: id=%s", self.device_id)
 
     async def serve(self, host: str = "127.0.0.1", port: int = 12800):
         return await serve(

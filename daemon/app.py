@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import os
 import secrets
 import signal
@@ -46,7 +47,10 @@ class App:
     async def dispatch(self, method, path, payload):
         if method == "GET" and path == "/health":
             return 200, {"ok": True, "device_connected": self.device_server.connected,
-                         "busy": self.runtime.busy, "approval_supported": False}
+                         "busy": self.runtime.busy, "approval_supported": False,
+                         "device_id": self.device_server.device_id,
+                         "device_protocol": "legacy-avatar" if self.device_server.legacy_device else "watchdog-v1",
+                         "display_verified": False}
         if method == "GET" and path == "/status":
             return 200, self.runtime.state.snapshot().to_dict()
         if method == "GET" and path.startswith("/tasks/"):
@@ -105,7 +109,7 @@ def api_request(port, token, method, path, payload=None):
 def main():
     parser = argparse.ArgumentParser(prog="codexwatchdog")
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("serve", "run", "status", "cancel", "simulate-device"):
+    for name in ("serve", "run", "status", "cancel", "simulate-device", "doctor"):
         child = sub.add_parser(name)
         child.add_argument("--token-file", type=Path, default=Path(".run/token"))
         child.add_argument("--api-port", type=int, default=12880)
@@ -129,6 +133,12 @@ def main():
     try:
         token = load_token(args.token_file, create=args.command == "serve")
         if args.command == "serve":
+            logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+            if args.legacy_device:
+                logging.getLogger("codexwatchdog").warning(
+                    "Legacy avatar protocol is display-only and unauthenticated; "
+                    "ESP-Claw/AI.AGENT firmware compatibility is not established."
+                )
             async def serve_forever():
                 app = create_app(args.codex, token=token, device_id=args.device_id, backend=args.backend, legacy_device=args.legacy_device)
                 await app.start(args.host, args.port, args.api_port)
@@ -148,6 +158,13 @@ def main():
             asyncio.run(monitor(args.url, token, args.device_id))
         elif args.command == "status":
             print(json.dumps(api_request(args.api_port, token, "GET", "/status"), ensure_ascii=False))
+        elif args.command == "doctor":
+            from .diagnostics import diagnose
+            health = api_request(args.api_port, token, "GET", "/health")
+            status = api_request(args.api_port, token, "GET", "/status")
+            report = diagnose(health, status)
+            print(json.dumps(report, ensure_ascii=False, indent=2))
+            return 0 if health.get("device_connected") else 2
         elif args.command == "cancel":
             print(json.dumps(api_request(args.api_port, token, "POST", f"/tasks/{args.task_id}/cancel", {}), ensure_ascii=False))
         else:

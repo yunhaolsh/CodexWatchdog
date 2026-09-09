@@ -66,15 +66,21 @@ python -m daemon.app serve --backend app-server
 该后端把设备的 Allow/Reject 转发为 app-server 的一次性 `accept`/`decline`，
 尚未在设备上提供 `acceptForSession` 或网络策略编辑。
 
-当前固件可先做屏幕冒烟测试：
+`--legacy-device` 仅针对旧 StackChan 头像/通话固件，未验证适用于当前实机。
+它不适用于 ESP-Claw 或 AI.AGENT 协议，不应作为实机验收的默认方案。
+
+遇到“任务完成但屏幕无显示”，先运行：
 
 ```bash
-python -m daemon.app serve --host 0.0.0.0 --legacy-device
+python -m daemon.app doctor
 ```
 
-legacy 模式是显式的临时兼容模式：当前固件发送旧版 hello 和自有 token，服务端因此
-不验证 Watchdog token，只发送旧版屏幕 `TextMessage` 帧（`0x07`）。它不提供灯效或审批。
-请只在可信局域网短时间使用，完成屏幕测试后关闭。
+`device_transport: disconnected` 表示任务消息没有设备接收，退出码为 2。
+连接成功也不等于屏幕显示成功。诊断会列出 USB 序列号，不打开串口或复位设备。
+详细现场记录见 [设备诊断](docs/DEVICE_DIAGNOSIS.md)。
+
+legacy 模式不验证 Watchdog token，只发送旧版 `TextMessage` 帧（`0x07`），
+所有入站动作均被忽略，不能参与审批。它尚缺旧协议应用层心跳的实机验证。
 
 ```bash
 python -m daemon.app cancel TASK_ID

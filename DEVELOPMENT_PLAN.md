@@ -31,7 +31,7 @@
 - [x] 重连保留并重放最新状态。
 - [x] 模拟设备连接真实服务，独立 CLI 进程提交本地模拟任务。
 - [x] 自动化验证 HTTP/WS 鉴权、连接恢复、非零退出、缺失完成和取消。
-- [ ] 用户通过真实 Codex 任务验证显示状态。
+- [x] 用户通过真实 Codex 任务验证 CLI 和模拟设备显示状态（2026-09-09）。
 
 自动化使用 mock Codex 进程，不调用模型。当前完成的工作以此阶段为界。
 
@@ -43,8 +43,8 @@
 - [x] 实现 app-server 的 thread/turn 启动、审批挂起和设备 action 恢复骨架。
 - [x] 将 app-server 后端接入 Daemon 的 `serve --backend app-server`。
 - [ ] 真实 StackChan 触摸按钮验证 approve/decline 后 Codex 是否继续/停止。
-- [x] 增加显式 legacy 模式，可用当前固件做屏幕 TextMessage 冒烟测试。
-- [ ] 在 `/dev/ttyACM1` 上做屏幕冒烟测试（不刷写固件）。
+- [x] 增加旧头像协议 TextMessage 编码；只验证编码，不代表当前实机兼容。
+- [ ] 确认 USB `44:1B:F6:E5:62:28` 的固件，再接入屏幕。不得使用 ACM1 的另一块设备。
 - [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
 - [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
 - [ ] 审批的可用选项以服务端请求为准。
