@@ -19,8 +19,8 @@
 - [x] 确认本地已有 ESP-IDF 和 StackChan 工程。
 - [x] 确认 Codex CLI 支持 `exec --json`。
 - [x] 建立 Python 包、依赖、测试和 Git 仓库。
-- [ ] 确认实际 USB 串口、板型、当前固件和 ready 模式含义。
-- [ ] 记录现有固件及恢复方法，检查可用构建环境。
+- [x] 确认目标 USB `44:1B:F6:E5:62:28`、StackChan 板型和 Ready 配网含义；ACM 编号不固定。
+- [x] 备份完整 16MB Flash，记录恢复方法；使用现有 ESP-IDF/Python 3.13 编译成功（见 docs/FIRMWARE_RECOVERY.md）。
 
 ## Phase 1：PC 完整链路
 
@@ -44,7 +44,7 @@
 - [x] 将 app-server 后端接入 Daemon 的 `serve --backend app-server`。
 - [ ] 真实 StackChan 触摸按钮验证 approve/decline 后 Codex 是否继续/停止。
 - [x] 增加旧头像协议 TextMessage 编码；只验证编码，不代表当前实机兼容。
-- [ ] 确认 USB `44:1B:F6:E5:62:28` 的固件，再接入屏幕。不得使用 ACM1 的另一块设备。
+- [ ] 恢复已确认的 USB `44:1B:F6:E5:62:28` 固件后接入屏幕；不得操作另一块 `AC:27:6E:D2:FD:C8`，不能按 ACM 编号识别。
 - [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
 - [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
 - [ ] 审批的可用选项以服务端请求为准。

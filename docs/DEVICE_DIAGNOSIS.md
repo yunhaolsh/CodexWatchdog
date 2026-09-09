@@ -123,3 +123,11 @@ nvs/otadata/phy_init/ota_0/ota_1/assets/coredump 不同；启动固件发生变�
 恢复启动后才能配网。本次操作仅枚举 USB、读取内核日志和只读串口，未刷写。
 现有外部 diagnose_stackchan_serial.py 在出现 SPI_FAST_FLASH_BOOT 时会误报
 “Firmware appears to be booting”，本次明确以原始 PSRAM 错误和反复重启为准。
+
+
+## 用户授权后的固件恢复
+
+用户明确要求直接刷机后，已对目标读取硬件身份、备份完整 16MB Flash、
+重新编译并刷入 Quad PSRAM 配置的 StackChan 固件。镜像校验成功，启动日志
+确认 PSRAM 初始化成功并进入 app_main。后续 USB 断开导致尚未确认 Launcher
+和实际屏幕状态，详见 [恢复记录](FIRMWARE_RECOVERY.md)。
