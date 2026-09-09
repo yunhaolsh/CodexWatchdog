@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import json
 import secrets
+import struct
 from urllib.parse import urlsplit
 
 from websockets.asyncio.server import ServerConnection, serve
@@ -14,11 +15,12 @@ from .protocol import TaskAction, TaskStatus
 
 
 class StackChanWebSocketServer:
-    def __init__(self, token: str, device_id: str = "stackchan-1"):
+    def __init__(self, token: str, device_id: str = "stackchan-1", legacy_device: bool = False):
         if not token:
             raise ValueError("device token is required")
         self.token = token
         self.device_id = device_id
+        self.legacy_device = legacy_device
         self._connection: ServerConnection | None = None
         self._latest = TaskStatus("none", "idle", title="Ready / 就绪")
         self._action_handler = None
@@ -37,7 +39,7 @@ class StackChanWebSocketServer:
             connection = self._connection
             if connection is not None:
                 try:
-                    await asyncio.wait_for(connection.send(status.to_json()), 3)
+                    await asyncio.wait_for(connection.send(self._encode_status(status)), 3)
                 except (ConnectionClosed, TimeoutError):
                     self._connection = None
                     await connection.close()
@@ -47,7 +49,7 @@ class StackChanWebSocketServer:
             return connection.respond(404, "unknown endpoint\n")
         values = request.headers.get_all("Authorization")
         expected = f"Bearer {self.token}".encode()
-        if len(values) != 1 or not secrets.compare_digest(values[0].encode(), expected):
+        if not self.legacy_device and (len(values) != 1 or not secrets.compare_digest(values[0].encode(), expected)):
             return connection.respond(401, "unauthorized\n")
         if request.headers.get_all("Origin"):
             return connection.respond(403, "browser connections are not supported\n")
@@ -56,7 +58,7 @@ class StackChanWebSocketServer:
     async def handle(self, websocket: ServerConnection) -> None:
         try:
             raw = await asyncio.wait_for(websocket.recv(), 5)
-            hello = decode_hello(raw)
+            hello = decode_hello(raw, legacy=self.legacy_device)
             if hello["device_id"] != self.device_id:
                 await websocket.close(1008, "device is not paired")
                 return
@@ -65,11 +67,14 @@ class StackChanWebSocketServer:
                     await websocket.close(1008, "device already connected")
                     return
                 self._connection = websocket
-                await websocket.send(json.dumps({
-                    "type": "hello", "version": 1, "device_id": self.device_id,
-                    "capabilities": {"approval": False},
-                }))
-                await websocket.send(self._latest.to_json())
+                if self.legacy_device:
+                    await websocket.send(self._encode_status(self._latest))
+                else:
+                    await websocket.send(json.dumps({
+                        "type": "hello", "version": 1, "device_id": self.device_id,
+                        "capabilities": {"approval": False},
+                    }))
+                    await websocket.send(self._latest.to_json())
             async for raw in websocket:
                 try:
                     if not isinstance(raw, str):
@@ -102,13 +107,21 @@ class StackChanWebSocketServer:
             max_size=16384, max_queue=16,
         )
 
+    def _encode_status(self, status: TaskStatus):
+        if not self.legacy_device:
+            return status.to_json()
+        payload = json.dumps({"name": "CodexWatchdog", "content": status.message or status.title}, ensure_ascii=False).encode()
+        return bytes([0x07]) + struct.pack(">I", len(payload)) + payload
 
-def decode_hello(raw: str) -> dict:
+
+def decode_hello(raw: str, legacy: bool = False) -> dict:
     if not isinstance(raw, str):
         raise ValueError("expected a text hello")
     payload = json.loads(raw)
     if not isinstance(payload, dict) or payload.get("type") != "hello":
         raise ValueError("expected StackChan hello")
+    if legacy and "version" not in payload:
+        return {"device_id": payload.get("device_id") or "stackchan-1", "legacy": True}
     if type(payload.get("version")) is not int or payload["version"] != 1:
         raise ValueError("unsupported protocol version")
     if not isinstance(payload.get("device_id"), str) or not payload["device_id"]:

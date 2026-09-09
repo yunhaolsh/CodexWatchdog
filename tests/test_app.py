@@ -13,6 +13,11 @@ def test_app_can_select_app_server_backend():
     assert app.runtime.codex.__class__.__name__ == "AppServerTaskAdapter"
 
 
+def test_app_can_enable_legacy_device_mode():
+    app = create_app(token="test-token", legacy_device=True)
+    assert app.device_server.legacy_device is True
+
+
 def test_load_token_creates_private_file(tmp_path):
     path = tmp_path / ".run" / "token"
     token = load_token(path, create=True)

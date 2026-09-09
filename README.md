@@ -66,6 +66,16 @@ python -m daemon.app serve --backend app-server
 该后端把设备的 Allow/Reject 转发为 app-server 的一次性 `accept`/`decline`，
 尚未在设备上提供 `acceptForSession` 或网络策略编辑。
 
+当前固件可先做屏幕冒烟测试：
+
+```bash
+python -m daemon.app serve --host 0.0.0.0 --legacy-device
+```
+
+legacy 模式是显式的临时兼容模式：当前固件发送旧版 hello 和自有 token，服务端因此
+不验证 Watchdog token，只发送旧版屏幕 `TextMessage` 帧（`0x07`）。它不提供灯效或审批。
+请只在可信局域网短时间使用，完成屏幕测试后关闭。
+
 ```bash
 python -m daemon.app cancel TASK_ID
 ```

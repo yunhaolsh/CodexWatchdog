@@ -70,8 +70,8 @@ class App:
         return 404, {"error": "not found"}
 
 
-def create_app(codex_executable="codex", *, token: str, device_id="stackchan-1", backend="exec") -> App:
-    device_server = StackChanWebSocketServer(token, device_id)
+def create_app(codex_executable="codex", *, token: str, device_id="stackchan-1", backend="exec", legacy_device=False) -> App:
+    device_server = StackChanWebSocketServer(token, device_id, legacy_device=legacy_device)
     codex = AppServerTaskAdapter(codex_executable) if backend == "app-server" else CodexCliAdapter(codex_executable)
     return App(TaskRuntime(codex, device_server), device_server)
 
@@ -115,6 +115,7 @@ def main():
             child.add_argument("--device-id", default="stackchan-1")
             child.add_argument("--codex", default="codex")
             child.add_argument("--backend", choices=("exec", "app-server"), default="exec")
+            child.add_argument("--legacy-device", action="store_true", help="accept the current StackChan hello and send TextMessage frames")
         elif name == "run":
             child.add_argument("prompt")
             child.add_argument("--cwd", type=Path, default=Path.cwd())
@@ -129,7 +130,7 @@ def main():
         token = load_token(args.token_file, create=args.command == "serve")
         if args.command == "serve":
             async def serve_forever():
-                app = create_app(args.codex, token=token, device_id=args.device_id, backend=args.backend)
+                app = create_app(args.codex, token=token, device_id=args.device_id, backend=args.backend, legacy_device=args.legacy_device)
                 await app.start(args.host, args.port, args.api_port)
                 stop = asyncio.Event()
                 loop = asyncio.get_running_loop()
