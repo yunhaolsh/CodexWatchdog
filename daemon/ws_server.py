@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import inspect
 import json
 import logging
@@ -15,6 +16,11 @@ from websockets.exceptions import ConnectionClosed
 from .protocol import TaskAction, TaskStatus
 
 logger = logging.getLogger("codexwatchdog.device")
+
+LEGACY_HEARTBEAT_INTERVAL = 3
+LEGACY_PONG_TIMEOUT = 6
+LEGACY_PING = bytes([0x10, 0, 0, 0, 0])
+LEGACY_PONG = bytes([0x11, 0, 0, 0, 0])
 
 
 class StackChanWebSocketServer:
@@ -61,6 +67,8 @@ class StackChanWebSocketServer:
         return None
 
     async def handle(self, websocket: ServerConnection) -> None:
+        heartbeat = None
+        pong = asyncio.Event()
         try:
             raw = await asyncio.wait_for(websocket.recv(), 5)
             hello = decode_hello(raw, legacy=self.legacy_device)
@@ -76,6 +84,7 @@ class StackChanWebSocketServer:
                             "legacy-avatar" if self.legacy_device else "watchdog-v1")
                 if self.legacy_device:
                     await websocket.send(self._encode_status(self._latest))
+                    heartbeat = asyncio.create_task(self._legacy_heartbeat(websocket, pong))
                 else:
                     await websocket.send(json.dumps({
                         "type": "hello", "version": 1, "device_id": self.device_id,
@@ -84,7 +93,9 @@ class StackChanWebSocketServer:
                     await websocket.send(self._latest.to_json())
             async for raw in websocket:
                 if self.legacy_device:
-                    # An unauthenticated display-only session must never submit approvals.
+                    # Only the fixed heartbeat response is actionable in display-only mode.
+                    if raw == LEGACY_PONG:
+                        pong.set()
                     continue
                 try:
                     if not isinstance(raw, str):
@@ -108,9 +119,27 @@ class StackChanWebSocketServer:
         except ConnectionClosed:
             pass
         finally:
+            if heartbeat is not None:
+                heartbeat.cancel()
+                with suppress(asyncio.CancelledError):
+                    await heartbeat
             if self._connection is websocket:
                 self._connection = None
                 logger.info("Device disconnected: id=%s", self.device_id)
+
+    async def _legacy_heartbeat(self, websocket, pong):
+        try:
+            while True:
+                pong.clear()
+                async with self._send_lock:
+                    await asyncio.wait_for(websocket.send(LEGACY_PING), 3)
+                await asyncio.wait_for(pong.wait(), LEGACY_PONG_TIMEOUT)
+                await asyncio.sleep(LEGACY_HEARTBEAT_INTERVAL)
+        except TimeoutError:
+            logger.warning("Legacy avatar heartbeat timed out")
+            await websocket.close(1011, "avatar heartbeat timed out")
+        except ConnectionClosed:
+            pass
 
     async def serve(self, host: str = "127.0.0.1", port: int = 12800):
         return await serve(

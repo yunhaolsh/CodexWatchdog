@@ -80,7 +80,33 @@ python -m daemon.app doctor
 详细现场记录见 [设备诊断](docs/DEVICE_DIAGNOSIS.md)。
 
 legacy 模式不验证 Watchdog token，只发送旧版 `TextMessage` 帧（`0x07`），
-所有入站动作均被忽略，不能参与审批。它尚缺旧协议应用层心跳的实机验证。
+仅处理固定心跳回复，其他入站动作均被忽略，不能参与审批。
+已实现旧协议应用层心跳：每轮发送 `0x10`，等待 `0x11`，超时关闭连接；
+自动化已验证回复、超时和重连，实机显示仍需验收。
+
+### 已恢复固件的屏幕测试
+
+对于按照 [恢复记录](docs/FIRMWARE_RECOVERY.md) 刷入的 StackChan 固件，
+首次先在设备 `SETUP` 中配网，再从桌面进入 **AVATAR** 测试显示。
+AI.AGENT 使用不同协议，当前测试服务不支持这个入口。
+
+PC 接收端：
+
+```bash
+python -m daemon.app serve --host 0.0.0.0 --legacy-device
+```
+
+固件默认访问 `stackchan-nanobot.local:12800`；需要发布这个主机名为当前 PC
+的局域网地址。本地已有 Demo 可复用以下脚本（单独运行，地址按实际填写）：
+
+```bash
+python /home/yunhao/github/stackchan/scripts/mdns_alias.py \
+  --name stackchan-nanobot.local --address 192.168.18.6
+```
+
+设备进入 AVATAR 后，服务应记录 `Device connected`，屏幕应收到
+`Ready / 就绪`。先验证这条固定文字，再运行 Codex 任务。
+切换局域网后需更新发布地址；上述手动服务不是系统自启动服务。
 
 ```bash
 python -m daemon.app cancel TASK_ID

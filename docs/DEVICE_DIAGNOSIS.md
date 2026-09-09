@@ -131,3 +131,20 @@ nvs/otadata/phy_init/ota_0/ota_1/assets/coredump 不同；启动固件发生变�
 重新编译并刷入 Quad PSRAM 配置的 StackChan 固件。镜像校验成功，启动日志
 确认 PSRAM 初始化成功并进入 app_main。后续 USB 断开导致尚未确认 Launcher
 和实际屏幕状态，详见 [恢复记录](FIRMWARE_RECOVERY.md)。
+
+
+## 恢复后的联网与接收端准备
+
+用户确认恢复固件后屏幕已点亮，并完成网络配置。PC 新局域网地址为
+`192.168.18.6/24`；起初 12800/12880 无服务监听，原主机名也无法解析。
+已启动本地 mDNS 别名发布及 Watchdog legacy-avatar 显示测试服务。
+PC 本地解析 `stackchan-nanobot.local` 得到 `192.168.18.6`。
+
+补充头像协议应用层心跳（0x10/0x11），30 项测试通过，覆盖回复、
+超时关闭、重新连接和不允许未经鉴权的头像会话批准任务。
+启动后 doctor 显示 daemon 正常、device_connected=false、screen=unverified。
+下一步由用户进入 AVATAR，观察固定 `Ready / 就绪`；网络配置完成和
+PC 本地 DNS 成功本身均不能证明设备能访问服务。
+
+当前服务 PID 文件为 `.run/daemon.pid`、`.run/mdns.pid`，日志同目录。
+这些是本次启动的临时服务，不覆盖旧 Demo 的服务或添加系统自启动。

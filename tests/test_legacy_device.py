@@ -36,3 +36,42 @@ def test_unauthenticated_legacy_connection_cannot_approve():
             await listener.wait_closed()
         assert calls == []
     asyncio.run(scenario())
+
+
+def test_legacy_heartbeat_requires_application_pong_and_allows_reconnect(monkeypatch):
+    from daemon import ws_server
+    monkeypatch.setattr(ws_server, 'LEGACY_HEARTBEAT_INTERVAL', 0.01)
+    monkeypatch.setattr(ws_server, 'LEGACY_PONG_TIMEOUT', 0.15)
+
+    async def scenario():
+        server = StackChanWebSocketServer('test-token', legacy_device=True)
+        listener = await server.serve(port=0)
+        url = f'ws://127.0.0.1:{listener.sockets[0].getsockname()[1]}/stackChan/ws'
+        try:
+            async with connect(url, proxy=None) as ws:
+                await ws.send('{"type":"hello"}')
+                assert (await ws.recv())[0] == 7
+                for _ in range(3):
+                    assert await asyncio.wait_for(ws.recv(), 1) == bytes.fromhex('10 00000000')
+                    await ws.send(bytes.fromhex('11 00000000'))
+                assert await asyncio.wait_for(ws.recv(), 1) == bytes.fromhex('10 00000000')
+                # WebSocket control pong and malformed application pong cannot keep
+                # a stalled firmware UI alive: only the exact application frame counts.
+                await ws.pong()
+                await ws.send(bytes.fromhex('11 00000001 00'))
+                await asyncio.wait_for(ws.wait_closed(), 2)
+                assert ws.close_code == 1011
+            for _ in range(100):
+                if not server.connected:
+                    break
+                await asyncio.sleep(0.01)
+            assert not server.connected
+            async with connect(url, proxy=None) as ws:
+                await ws.send('{"type":"hello"}')
+                assert (await ws.recv())[0] == 7
+                assert await ws.recv() == bytes.fromhex('10 00000000')
+                await ws.send(bytes.fromhex('11 00000000'))
+        finally:
+            listener.close()
+            await listener.wait_closed()
+    asyncio.run(scenario())
