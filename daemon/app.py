@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from .codex_cli_adapter import CodexCliAdapter
+from .app_server_runtime import AppServerTaskAdapter
 from .runtime import BusyError, TaskRuntime
 from .server import ControlServer
 from .ws_server import StackChanWebSocketServer
@@ -69,9 +70,10 @@ class App:
         return 404, {"error": "not found"}
 
 
-def create_app(codex_executable="codex", *, token: str, device_id="stackchan-1") -> App:
+def create_app(codex_executable="codex", *, token: str, device_id="stackchan-1", backend="exec") -> App:
     device_server = StackChanWebSocketServer(token, device_id)
-    return App(TaskRuntime(CodexCliAdapter(codex_executable), device_server), device_server)
+    codex = AppServerTaskAdapter(codex_executable) if backend == "app-server" else CodexCliAdapter(codex_executable)
+    return App(TaskRuntime(codex, device_server), device_server)
 
 
 def load_token(path: Path, create=False) -> str:
@@ -112,6 +114,7 @@ def main():
             child.add_argument("--port", type=int, default=12800)
             child.add_argument("--device-id", default="stackchan-1")
             child.add_argument("--codex", default="codex")
+            child.add_argument("--backend", choices=("exec", "app-server"), default="exec")
         elif name == "run":
             child.add_argument("prompt")
             child.add_argument("--cwd", type=Path, default=Path.cwd())
@@ -126,7 +129,7 @@ def main():
         token = load_token(args.token_file, create=args.command == "serve")
         if args.command == "serve":
             async def serve_forever():
-                app = create_app(args.codex, token=token, device_id=args.device_id)
+                app = create_app(args.codex, token=token, device_id=args.device_id, backend=args.backend)
                 await app.start(args.host, args.port, args.api_port)
                 stop = asyncio.Event()
                 loop = asyncio.get_running_loop()

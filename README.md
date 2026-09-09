@@ -57,6 +57,15 @@ python -m daemon.app status
 任务 ID。模拟器应显示 `running`、命令或回复摘要、最终 `success`/`failed`。
 `success` 表示本轮完成且进程退出码为 0，不表示任务结果经过独立正确性验证。
 
+要启用真实结构化审批，先使用：
+
+```bash
+python -m daemon.app serve --backend app-server
+```
+
+该后端把设备的 Allow/Reject 转发为 app-server 的一次性 `accept`/`decline`，
+尚未在设备上提供 `acceptForSession` 或网络策略编辑。
+
 ```bash
 python -m daemon.app cancel TASK_ID
 ```

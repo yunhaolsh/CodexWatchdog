@@ -76,5 +76,11 @@ class TaskRuntime:
             await self.cancel(self.state.task_id)
 
     async def handle_action(self, action: TaskAction) -> dict:
+        backend_handler = getattr(self.codex, "handle_action", None)
+        if backend_handler is not None:
+            result = backend_handler(action)
+            if asyncio.iscoroutine(result):
+                result = await result
+            return result
         # exec JSONL is monitoring-only. Never acknowledge an approval we cannot deliver.
         return {"accepted": False, "code": "approval_unavailable"}

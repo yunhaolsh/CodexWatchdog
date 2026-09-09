@@ -8,6 +8,11 @@ def test_app_wires_runtime_to_device_server():
     assert app.device_server._action_handler == app.runtime.handle_action
 
 
+def test_app_can_select_app_server_backend():
+    app = create_app("fake-codex", token="test-token", backend="app-server")
+    assert app.runtime.codex.__class__.__name__ == "AppServerTaskAdapter"
+
+
 def test_load_token_creates_private_file(tmp_path):
     path = tmp_path / ".run" / "token"
     token = load_token(path, create=True)
