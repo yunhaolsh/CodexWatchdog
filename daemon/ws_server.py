@@ -19,6 +19,9 @@ class StackChanWebSocketServer:
         self._latest: TaskStatus | None = None
         self._action_handler = action_handler
 
+    def set_action_handler(self, handler: Callable[[TaskAction], Awaitable[None] | None]) -> None:
+        self._action_handler = handler
+
     async def publish(self, status: TaskStatus) -> None:
         self._latest = status
         if self._connection is not None:
