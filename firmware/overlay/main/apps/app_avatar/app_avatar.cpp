@@ -176,7 +176,7 @@ void AppAvatar::play_completion(bool success) {
         auto* codec = Board::GetInstance().GetAudioCodec();
         if (codec && !codec->output_enabled()) {
             const auto previous_volume = codec->output_volume();
-            constexpr uint8_t notification_volume = 75;
+            constexpr uint8_t notification_volume = 100;
             codec->EnableOutput(true);
             hal_bridge::board_set_speaker_volume(notification_volume, false);
             int rate = codec->output_sample_rate();
