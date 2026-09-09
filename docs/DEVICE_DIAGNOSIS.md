@@ -11,7 +11,7 @@
 
 | 当前端口 | USB 序列号 | 证据 |
 | --- | --- | --- |
-| `/dev/ttyACM0` | `44:1B:F6:E5:62:28` | 与旧 StackChan E562xx 记录对应的候选设备；被动读取无输出，当前固件待确认 |
+| `/dev/ttyACM0` | `44:1B:F6:E5:62:28` | 后续只读监听确认 `stack-chan` 1.4.3，ESP32-S3、16MB flash、8MB PSRAM；编译于 2026-08-31 |
 | `/dev/ttyACM1` | `AC:27:6E:D2:FD:C8` | 启动日志为 `esp-agent-demo`，版本 `0a52f7f-dirty`，SH8601 466x466、8MB flash，不是目标 StackChan |
 
 ACM1 串口操作中观测到 `USB_UART_CHIP_RESET`，后续停止操作该设备。未刷写任何设备。
@@ -29,7 +29,7 @@ ACM1 串口操作中观测到 `USB_UART_CHIP_RESET`，后续停止操作该设�
 ## 后续顺序
 
 1. 用 `python -m daemon.app doctor` 检查设备连接，避免反复调用 Codex 测试屏幕。
-2. 确认目标 StackChan 的 Ready 界面含义及实际固件，不操作 ACM1。
+2. 目标身份已确认；先恢复 Wi-Fi，再确认服务地址和协议，不操作 ACM1。
 3. 根据固件确认现有控制接口或实现 Watchdog 固件组件。
 4. 首先推送固定测试文字验证显示，再进行任务流验收。
 
@@ -49,3 +49,44 @@ ACM1 串口操作中观测到 `USB_UART_CHIP_RESET`，后续停止操作该设�
 不要仅凭用户提到“StackChan 界面”或“Ready”选择协议。优先在用户短按 RST 后，
 使用已有 `scripts/diagnose_stackchan_serial.py` 对指定 USB by-id 做只读监听。
 该脚本使用 `os.open`，不调整 DTR/RTS；没有日志时记录“未知”，不猜测当前固件。
+
+## AI.AGENT 扫描 Wi-Fi 时的实机故障
+
+用户进入 AI.AGENT 后，使用上述 by-id 只读监听，捕获到以下顺序：
+
+```text
+WifiStation: No AP found, next scan in 30 seconds
+SystemInfo: free sram: 6851 minimal sram: 47
+WifiBoard: WiFi connection timeout, entering config mode
+WifiManager: Starting config AP
+wifi:alloc eb len=752 type=4 fail
+Guru Meditation Error: Core  0 panic'ed (LoadProhibited)
+EXCVADDR: 0x0000002c
+Backtrace: 0x421e5dee:0x3fcf3e00 0x421e69f2:0x3fcf3e60 0x421f27e1:0x3fcf3ea0 0x421f4467:0x3fcf3ec0 0x421f25ea:0x3fcf3ee0 0x42267eb1:0x3fcf3f00 0x4038fbed:0x3fcf3f30
+ELF file SHA256: 4b919ca8f
+Rebooting...
+app_init: Project name:     stack-chan
+app_init: App version:      1.4.3
+app_init: Compile time:     Aug 31 2026 13:40:43
+```
+
+结论：扫描失败后切换配网热点发生分配失败及崩溃；这不是等待 Codex 任务。
+低 SRAM 与分配失败同时出现，但尚未定位内存耗尽来源，不能宣称根因已修复。
+本地 `firmware/build/stack-chan.elf` SHA256 为
+`bea159568d6013b815f1cf6875f9f352c0810240a9742f33205fc85d87b0dde7`，
+与实机不同，不用它把崩溃地址映射成确定的源码行。
+
+PC 当前关联 `lenovo-5G`，频率 5765 MHz。ESP32-S3 仅支持 2.4 GHz Wi-Fi，
+见 [Espressif 产品说明](https://www.espressif.com/en/products/socs/esp32-s3)。
+此记录不代表知道设备保存的 SSID，也不能断定频段是扫描失败的唯一原因。
+PC 可继续使用同一路由器的 5 GHz 网络，前提是两个频段的客户端可互通。
+
+建议先在设备重启后的桌面进入 `SETUP`，按屏幕指引通过 StackChan World
+配置可达的 2.4 GHz 网络。本地 `app_setup/workers/connectivity.cpp` 对应流程为
+`APP SETUP` -> `Next` -> 手机连接 -> `Ready to Configure ~` ->
+`Verifying...` -> `Done! Reboot in ...`，Ready 本身不代表配网成功。
+尚未实机验证该入口能避开 Agent 模式下的低内存故障。
+
+联网后仍需处理 AI.AGENT 的 Xiaozhi OTA/WebSocket 接口；当前 Watchdog
+`--legacy-device` 不是该接口的实现。先验证联网、服务握手和固定文字显示，
+再让用户重跑 Codex 任务。
