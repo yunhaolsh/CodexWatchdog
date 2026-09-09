@@ -190,3 +190,20 @@ WATCHDOG：常驻、可滚动文字，保留最终回复，运行红闪/完成�
 用户尚需打开桌面 WATCHDOG 检查文字常驻/滚动，并在下一次任务执行时
 验收红灯、绿灯、提示音及断线行为；当前不声称这些物理效果已获确认。
 真实审批按钮与鉴权原生协议仍待开发。构建与操作详见 firmware/README.md。
+
+
+## 用户确认新版 WATCHDOG 完成状态可见
+
+用户已进入 WATCHDOG，并确认看到 Completed / 本轮完成。
+此项确认了新版页面能呈现完成快照；尚未确认正文滚动、30 秒停留、
+灯效或提示音，因此这些验收项保持待确认。
+
+随后在设备在线时执行只读 README 任务
+`92b18c99c78b458280212900b6f5af8f`，CLI 最终 success，任务结束后仍连接。
+只读串口明确捕获到 `Watchdog: status task=92b18c99 state=running`；
+本次监听窗口没有捕获终态日志及音频日志，不将 PC success 当作这些效果的证明。
+日志位于 `.run/watchdog-live-task.jsonl`、`.run/watchdog-live-device.log`、
+`.run/watchdog-live-completion.log`。
+
+发现当前串口序号格式显示 `seq=ld`，数值未正确输出，后续固件维护时应修正
+日志格式；状态处理使用的数值不来自这条日志，当前不能凭日志核验序号。

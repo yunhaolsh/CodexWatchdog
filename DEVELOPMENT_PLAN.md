@@ -59,7 +59,7 @@
 
 - [x] 在新仓库建立独立固件副本准备工具和 UI overlay；版本及构建方法见 firmware/README.md。
 - [ ] 设备主动连接 PC，使用 Watchdog v1 hello 和状态协议。
-- [x] 实现 WATCHDOG 常驻显示页：当前阶段、可滚动正文、最终回复和在线/离线标识（待实机验收）。
+- [x] 实现 WATCHDOG 常驻显示页：当前阶段、可滚动正文、最终回复和在线/离线标识；用户已确认完成标题可见，其余效果待验收。
 - [ ] 增加真实权限内容和 Allow/Reject，接入鉴权协议。
 - [x] 实现状态灯：idle 熄灭、running 红闪、waiting 黄闪、success 绿常亮、failed 红常亮（待实机验收）。
 - [x] 实现 12 秒心跳超时显示 OFFLINE、文字变灰、灯熄灭，重连恢复（待实机验收）。
