@@ -82,10 +82,10 @@ ping/pong 检测断线，拒绝错误路径、错误 token 和重复连接。
 将来设备通过局域网连接时使用 `serve --host 0.0.0.0`。HTTP 控制端口仍仅监听 loopback。
 当前是局域网明文 WebSocket，尚未实现 TLS 或自动发现。
 
-当前后端为 `codex exec --json`，只读取官方定义的任务事件，未接入真实审批。
-收到 `task.action` 会明确返回 `accepted: false, code: approval_unavailable`，不改变任务状态。
-下一阶段将评估 `codex app-server` 的结构化审批请求及响应，不用虚构日志事件或终端按键
-来模拟批准。语音、提示音乐和固件灯效同样尚未实现。
+当前默认后端为 `codex exec --json`，只做监控；`AppServerTaskAdapter` 已实现真实
+`app-server --stdio` 的 thread/turn 和审批 future，但尚未成为默认后端。设备动作在
+`exec` 模式会返回 `approval_unavailable`，只有 app-server 模式才会转发批准/拒绝。
+语音、提示音乐和固件灯效同样尚未实现。
 
 参考：[Codex 非交互模式](https://developers.openai.com/codex/noninteractive)、
 [Codex app-server 审批接口](https://developers.openai.com/codex/app-server)。

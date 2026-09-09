@@ -40,6 +40,8 @@
 - [ ] 读取当前 `codex app-server` 生成的 schema，确认 initialize、thread、turn 接口。
 - [x] 读取当前 CLI 生成的 v2 schema，完成 `app-server --stdio` initialize 握手客户端。
 - [x] 暴露 app-server server-notification 回调和严格审批响应对象。
+- [x] 实现 app-server 的 thread/turn 启动、审批挂起和设备 action 恢复骨架。
+- [ ] 将 app-server 后端接入 Daemon 的 `run --backend app-server`。
 - [ ] 接入 `item/commandExecution/requestApproval` 和文件变更审批。
 - [ ] 关联 task/thread/turn/request ID；单次批准或拒绝，防重放和过期操作。
 - [ ] 审批的可用选项以服务端请求为准。
