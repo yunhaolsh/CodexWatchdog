@@ -78,7 +78,8 @@ def load_token(path: Path, create=False) -> str:
     if create:
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            with path.open("x", opener=lambda p, flags: os.open(p, flags, 0o600)) as target:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            with os.fdopen(fd, "w") as target:
                 target.write(secrets.token_urlsafe(32))
         except FileExistsError:
             pass
